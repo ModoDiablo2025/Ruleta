@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ruleta de Números</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a12;
+    --surface: #13131f;
+    --panel: #1a1a2e;
+    --accent: #f0c040;
+    --accent2: #e05a2b;
+    --accent3: #3abff8;
+    --text: #f0ece0;
+    --muted: #8888aa;
+    --border: rgba(240,192,64,0.18);
+    --spin-time: 4s;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px 48px;
+    background-image:
+      radial-gradient(ellipse 70% 40% at 50% 0%, rgba(240,192,64,0.07) 0%, transparent 70%),
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,0.02) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.02) 40px);
+  }
+
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(2.4rem, 6vw, 4rem);
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    text-shadow: 0 0 30px rgba(240,192,64,0.4), 0 2px 0 rgba(0,0,0,0.6);
+    margin-bottom: 6px;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.85rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 36px;
+  }
+
+  .main-layout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 28px;
+    justify-content: center;
+    width: 100%;
+    max-width: 1100px;
+  }
+
+  /* ---- WHEEL COLUMN ---- */
+  .wheel-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+    min-width: 300px;
+  }
+
+  .wheel-wrap {
+    position: relative;
+    width: 320px;
+    height: 320px;
+  }
+
+  #wheelCanvas {
+    border-radius: 50%;
+    filter: drop-shadow(0 0 28px rgba(240,192,64,0.22));
+    display: block;
+  }
+
+  .wheel-pointer {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 14px solid transparent;
+    border-right: 14px solid transparent;
+    border-top: 34px solid var(--accent);
+    filter: drop-shadow(0 2px 8px rgba(240,192,64,0.7));
+    z-index: 10;
+  }
+
+  .wheel-center {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 4px solid var(--accent);
+    box-shadow: 0 0 18px rgba(240,192,64,0.5);
+    z-index: 10;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1rem;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+
+  /* ---- BIG RESULT ---- */
+  .result-display {
+    background: var(--panel);
+    border: 1.5px solid var(--border);
+    border-radius: 18px;
+    padding: 18px 40px;
+    text-align: center;
+    min-width: 220px;
+  }
+
+  .result-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .result-number {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 5rem;
+    line-height: 1;
+    color: var(--accent);
+    text-shadow: 0 0 24px rgba(240,192,64,0.5);
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+  }
+
+  .result-number.flash {
+    animation: flashAnim 0.35s ease;
+  }
+
+  @keyframes flashAnim {
+    0%   { transform: scale(1.3); color: #fff; text-shadow: 0 0 40px #fff; }
+    100% { transform: scale(1);   color: var(--accent); }
+  }
+
+  /* ---- SPIN BUTTON ---- */
+  .spin-btn {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 0.16em;
+    color: var(--bg);
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    border: none;
+    border-radius: 50px;
+    padding: 14px 56px;
+    cursor: pointer;
+    box-shadow: 0 4px 28px rgba(240,192,64,0.35), inset 0 1px 0 rgba(255,255,255,0.25);
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    user-select: none;
+  }
+
+  .spin-btn:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 8px 36px rgba(240,192,64,0.5);
+  }
+
+  .spin-btn:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+  }
+
+  .spin-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* ---- RIGHT COLUMN ---- */
+  .right-col {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 260px;
+    flex: 1;
+    max-width: 380px;
+  }
+
+  /* ---- CONFIG PANEL ---- */
+  .panel {
+    background: var(--panel);
+    border: 1.5px solid var(--border);
+    border-radius: 18px;
+    padding: 22px 24px;
+  }
+
+  .panel-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.3rem;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-title span { font-size: 1.1rem; }
+
+  .config-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .config-row label {
+    font-size: 0.82rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    min-width: 60px;
+  }
+
+  .config-row input[type=number] {
+    background: var(--surface);
+    border: 1.5px solid rgba(255,255,255,0.09);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 8px 14px;
+    width: 100px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .config-row input[type=number]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(240,192,64,0.12);
+  }
+
+  .apply-btn {
+    width: 100%;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 0.14em;
+    background: transparent;
+    border: 1.5px solid var(--accent3);
+    color: var(--accent3);
+    border-radius: 10px;
+    padding: 10px;
+    cursor: pointer;
+    transition: background 0.18s, color 0.18s;
+  }
+
+  .apply-btn:hover {
+    background: var(--accent3);
+    color: var(--bg);
+  }
+
+  .range-info {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 10px;
+    text-align: center;
+  }
+
+  /* ---- HISTORY ---- */
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 340px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .history-list::-webkit-scrollbar { width: 5px; }
+  .history-list::-webkit-scrollbar-track { background: transparent; }
+  .history-list::-webkit-scrollbar-thumb { background: rgba(240,192,64,0.25); border-radius: 4px; }
+
+  .history-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 9px 14px;
+    animation: slideIn 0.3s cubic-bezier(.22,1,.36,1);
+    border-left: 3px solid transparent;
+  }
+
+  .history-item:first-child {
+    border-left-color: var(--accent);
+    background: rgba(240,192,64,0.07);
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(16px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .hist-order {
+    font-size: 0.72rem;
+    color: var(--muted);
+    min-width: 24px;
+    text-align: right;
+    font-weight: 600;
+  }
+
+  .hist-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.5rem;
+    color: var(--text);
+    line-height: 1;
+    flex: 1;
+  }
+
+  .history-item:first-child .hist-num { color: var(--accent); }
+
+  .hist-tag {
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .history-item:first-child .hist-tag { color: var(--accent); content: 'ÚLTIMO'; }
+
+  .clear-btn {
+    width: 100%;
+    margin-top: 10px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.78rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 8px;
+    cursor: pointer;
+    transition: color 0.18s, border-color 0.18s;
+  }
+
+  .clear-btn:hover { color: var(--accent2); border-color: var(--accent2); }
+
+  .reset-btn {
+    width: 100%;
+    margin-top: 8px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1rem;
+    letter-spacing: 0.14em;
+    background: transparent;
+    border: 1.5px solid var(--accent);
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 9px;
+    cursor: pointer;
+    transition: background 0.18s, color 0.18s;
+  }
+  .reset-btn:hover { background: var(--accent); color: var(--bg); }
+
+  .remaining-badge {
+    display: inline-block;
+    background: rgba(240,192,64,0.12);
+    border: 1px solid rgba(240,192,64,0.3);
+    color: var(--accent);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border-radius: 20px;
+    padding: 3px 10px;
+    margin-left: 8px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+  }
+
+  .all-done {
+    text-align: center;
+    padding: 18px 0 8px;
+  }
+  .all-done .done-emoji { font-size: 2rem; display: block; margin-bottom: 6px; }
+  .all-done .done-text {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+  }
+  .all-done .done-sub {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .empty-hist {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.83rem;
+    padding: 18px 0;
+    letter-spacing: 0.06em;
+  }
+
+  /* ---- TICKER ---- */
+  .ticker-wrap {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.35rem;
+    letter-spacing: 0.18em;
+    color: var(--accent2);
+    min-height: 36px;
+    text-align: center;
+    text-shadow: 0 0 16px rgba(224,90,43,0.5);
+  }
+</style>
+</head>
+<body>
+
+<h1>🎡 Ruleta</h1>
+<p class="subtitle">Personaliza · Gira · Descubre</p>
+
+<div class="main-layout">
+  <!-- Wheel column -->
+  <div class="wheel-col">
+    <div class="wheel-wrap">
+      <div class="wheel-pointer"></div>
+      <canvas id="wheelCanvas" width="320" height="320"></canvas>
+      <div class="wheel-center" id="centerTxt">GO</div>
+    </div>
+    <div class="ticker-wrap" id="ticker"></div>
+    <div class="result-display">
+      <div class="result-label">Número Ganador</div>
+      <div class="result-number" id="resultNum">—</div>
+    </div>
+    <button class="spin-btn" id="spinBtn" onclick="spin()">GIRAR</button>
+  </div>
+
+  <!-- Right column -->
+  <div class="right-col">
+    <!-- Config -->
+    <div class="panel">
+      <div class="panel-title"><span>⚙</span> Configurar Rango</div>
+      <div class="config-row">
+        <label>Mínimo</label>
+        <input type="number" id="minVal" value="1" min="-999" max="999">
+      </div>
+      <div class="config-row">
+        <label>Máximo</label>
+        <input type="number" id="maxVal" value="12" min="-999" max="999">
+      </div>
+      <button class="apply-btn" onclick="applyRange()">⟳ Aplicar Rango</button>
+      <div class="range-info" id="rangeInfo">Rango: 1 – 12 · 12 números</div>
+    </div>
+
+    <!-- History -->
+    <div class="panel">
+      <div class="panel-title"><span>📋</span> Historial <span id="remainBadge" class="remaining-badge">12 restantes</span></div>
+      <div class="history-list" id="histList">
+        <div class="empty-hist">Aún no hay resultados.<br>¡Gira la ruleta!</div>
+      </div>
+      <button class="clear-btn" onclick="clearHistory()">✕ Limpiar historial</button>
+      <button class="reset-btn" onclick="resetWheel()">↺ Reiniciar ruleta completa</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('wheelCanvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height, R = W / 2 - 6;
+const cx = W / 2, cy = H / 2;
+
+let allNumbers = [];   // full range
+let numbers = [];      // remaining on wheel
+let history = [];
+let spinning = false;
+let currentAngle = 0;
+
+const COLORS = [
+  '#1b1b30','#232338','#1e2240','#1a1f35',
+  '#23203a','#1d2035','#202540','#1e1e32'
+];
+const ACCENTS = ['#f0c040','#e05a2b','#3abff8','#a78bfa','#34d399','#fb7185','#fbbf24','#60a5fa'];
+
+// Keep a stable color index per number so colors don't shuffle as wheel shrinks
+let colorMap = {};
+function buildColorMap() {
+  colorMap = {};
+  allNumbers.forEach((n, i) => {
+    colorMap[n] = i;
+  });
+}
+
+function buildNumbers(min, max) {
+  allNumbers = [];
+  for (let i = min; i <= max; i++) allNumbers.push(i);
+  numbers = [...allNumbers];
+  buildColorMap();
+}
+
+function drawWheel(angle) {
+  ctx.clearRect(0, 0, W, H);
+  if (numbers.length === 0) {
+    // Draw empty "done" circle
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.beginPath();
+    ctx.arc(0, 0, R, 0, Math.PI * 2);
+    ctx.fillStyle = '#13131f';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(240,192,64,0.3)';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(240,192,64,0.35)';
+    ctx.font = "bold 40px 'Bebas Neue', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('✓', 0, 0);
+    ctx.restore();
+    return;
+  }
+
+  const n = numbers.length;
+  const sliceAngle = (2 * Math.PI) / n;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+
+  for (let i = 0; i < n; i++) {
+    const ci = colorMap[numbers[i]] ?? i;
+    const start = i * sliceAngle - Math.PI / 2;
+    const end = start + sliceAngle;
+
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, R, start, end);
+    ctx.closePath();
+    ctx.fillStyle = COLORS[ci % COLORS.length];
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, R, start, end);
+    ctx.closePath();
+    ctx.strokeStyle = ACCENTS[ci % ACCENTS.length];
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.rotate(start + sliceAngle / 2);
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = ACCENTS[ci % ACCENTS.length];
+    ctx.shadowColor = ACCENTS[ci % ACCENTS.length];
+    ctx.shadowBlur = 8;
+    const fontSize = Math.max(10, Math.min(22, Math.floor(R * 0.28)));
+    ctx.font = `bold ${fontSize}px 'Bebas Neue', sans-serif`;
+    ctx.fillText(numbers[i], R - 10, 0);
+    ctx.restore();
+  }
+
+  ctx.beginPath();
+  ctx.arc(0, 0, R, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(240,192,64,0.45)';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function getWinner(angle) {
+  const n = numbers.length;
+  const sliceAngle = (2 * Math.PI) / n;
+  let a = ((-angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  const idx = Math.floor(a / sliceAngle) % n;
+  return numbers[idx];
+}
+
+function removeFromWheel(num) {
+  numbers = numbers.filter(n => n !== num);
+  // Reset angle so the remaining wheel looks natural
+  currentAngle = 0;
+}
+
+function updateRemaining() {
+  const badge = document.getElementById('remainBadge');
+  badge.textContent = `${numbers.length} restante${numbers.length !== 1 ? 's' : ''}`;
+}
+
+function updateSpinBtn() {
+  const btn = document.getElementById('spinBtn');
+  btn.disabled = numbers.length < 1;
+  btn.textContent = numbers.length === 0 ? '¡COMPLETADO!' : 'GIRAR';
+}
+
+function addToHistory(num) {
+  history.unshift(num);
+  renderHistory();
+}
+
+function renderHistory() {
+  const el = document.getElementById('histList');
+  if (history.length === 0) {
+    el.innerHTML = '<div class="empty-hist">Aún no hay resultados.<br>¡Gira la ruleta!</div>';
+    return;
+  }
+  el.innerHTML = history.map((n, i) => `
+    <div class="history-item">
+      <span class="hist-order">#${i + 1}</span>
+      <span class="hist-num">${n}</span>
+      <span class="hist-tag">${i === 0 ? 'último' : ''}</span>
+    </div>
+  `).join('');
+}
+
+function clearHistory() {
+  history = [];
+  renderHistory();
+  document.getElementById('resultNum').textContent = '—';
+}
+
+function resetWheel() {
+  history = [];
+  currentAngle = 0;
+  numbers = [...allNumbers];
+  renderHistory();
+  drawWheel(currentAngle);
+  updateRemaining();
+  updateSpinBtn();
+  document.getElementById('centerTxt').textContent = 'GO';
+  document.getElementById('resultNum').textContent = '—';
+  document.getElementById('ticker').textContent = '';
+}
+
+let tickInterval = null;
+
+function spin() {
+  if (spinning || numbers.length < 1) return;
+
+  // If only 1 left, pick it instantly
+  if (numbers.length === 1) {
+    const winner = numbers[0];
+    removeFromWheel(winner);
+    drawWheel(currentAngle);
+    const resEl = document.getElementById('resultNum');
+    resEl.textContent = winner;
+    resEl.classList.remove('flash');
+    void resEl.offsetWidth;
+    resEl.classList.add('flash');
+    document.getElementById('centerTxt').textContent = winner;
+    addToHistory(winner);
+    updateRemaining();
+    updateSpinBtn();
+    return;
+  }
+
+  spinning = true;
+  document.getElementById('spinBtn').disabled = true;
+  document.getElementById('centerTxt').textContent = '...';
+
+  const extraSpins = (5 + Math.floor(Math.random() * 6)) * 2 * Math.PI;
+  const targetOffset = Math.random() * 2 * Math.PI;
+  const totalRotation = extraSpins + targetOffset;
+  const duration = 3800 + Math.random() * 800;
+  const start = performance.now();
+  const startAngle = currentAngle;
+
+  let tickCount = 0;
+  const ticker = document.getElementById('ticker');
+  tickInterval = setInterval(() => {
+    ticker.textContent = numbers[Math.floor(Math.random() * numbers.length)];
+    tickCount++;
+    if (tickCount > 60) { clearInterval(tickInterval); ticker.textContent = ''; }
+  }, 55);
+
+  function easeOut(t) { return 1 - Math.pow(1 - t, 4); }
+
+  function frame(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = easeOut(progress);
+    currentAngle = startAngle + totalRotation * eased;
+    drawWheel(currentAngle);
+
+    if (progress < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      clearInterval(tickInterval);
+      ticker.textContent = '';
+      currentAngle = startAngle + totalRotation;
+      drawWheel(currentAngle);
+
+      const winner = getWinner(currentAngle);
+      const resEl = document.getElementById('resultNum');
+      resEl.textContent = winner;
+      resEl.classList.remove('flash');
+      void resEl.offsetWidth;
+      resEl.classList.add('flash');
+
+      document.getElementById('centerTxt').textContent = winner;
+      addToHistory(winner);
+
+      // Remove winner from wheel with a short delay so user sees it land
+      setTimeout(() => {
+        removeFromWheel(winner);
+        drawWheel(currentAngle);
+        updateRemaining();
+        spinning = false;
+        updateSpinBtn();
+      }, 900);
+    }
+  }
+
+  requestAnimationFrame(frame);
+}
+
+function applyRange() {
+  const min = parseInt(document.getElementById('minVal').value);
+  const max = parseInt(document.getElementById('maxVal').value);
+  if (isNaN(min) || isNaN(max)) { alert('Ingresa valores válidos.'); return; }
+  if (min >= max) { alert('El mínimo debe ser menor que el máximo.'); return; }
+  if (max - min > 99) { alert('El rango no puede tener más de 100 números.'); return; }
+  buildNumbers(min, max);
+  history = [];
+  currentAngle = 0;
+  renderHistory();
+  drawWheel(currentAngle);
+  document.getElementById('centerTxt').textContent = 'GO';
+  document.getElementById('resultNum').textContent = '—';
+  document.getElementById('rangeInfo').textContent =
+    `Rango: ${min} – ${max} · ${allNumbers.length} número${allNumbers.length !== 1 ? 's' : ''}`;
+  updateRemaining();
+  updateSpinBtn();
+}
+
+// Init
+buildNumbers(1, 12);
+drawWheel(currentAngle);
+updateRemaining();
+</script>
+</body>
+</html>
